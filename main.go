@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -57,10 +58,10 @@ func generateKeys() {
 }
 
 func main() {
-	// generateKeys()
-	// if err := godotenv.Load(); err != nil {
-	// 	log.Fatal(err)
-	// }
+
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	ctx := context.Background()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb+srv://admin:admin@playtime.3hqsl.gcp.mongodb.net/testDB?retryWrites=true&w=majority"))
@@ -103,6 +104,6 @@ func main() {
 	con.RegisterViews(server.Group("/"))
 
 	fmt.Println("routes registered")
-	server.Run()
+	server.RunTLS(":8080", "./localhost.pem", "./localhost-key.pem")
 
 }

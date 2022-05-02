@@ -12,15 +12,6 @@ func (x *commentController) create(c *gin.Context) {
 
 }
 
-// func (x *commentController) getOne(c *gin.Context) {
-// 	comment, err := x.NewComment(oid(c.Param("id")))
-// 	if err != nil {
-// 		respond(c, 400, false, foo(err))
-// 		return
-// 	}
-// 	respond(c, 200, true, comment)
-// }
-
 func (x *commentController) getAll(c *gin.Context) {
 	shepard, _ := x.NewComment(nil)
 	comments, err := shepard.GetAll(oid(c.Param("id")))
@@ -69,7 +60,6 @@ func (x *commentController) deleteAll(c *gin.Context) {
 func (x *commentController) registerRoutes(r *gin.RouterGroup) {
 	r.POST("/", x.protect(x.create))
 	r.GET("/:id", x.getAll)
-	// r.GET("/", x.getAll)
 	r.PUT("/", x.protect(x.update))
 	r.DELETE("/:id", x.protect(x.delete))
 	r.DELETE("/", x.deleteAll)
