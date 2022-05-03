@@ -10,16 +10,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type viewController struct {
+type iViews interface {
+	RegisterViews(r *gin.RouterGroup)
+	show(gin.ResponseWriter, string)
+	setData(interface{})
+}
+
+func (x *views) show(w gin.ResponseWriter, to string) {
+	x.ExecuteTemplate(w, to, x.iViewData)
+}
+
+type views struct {
 	viewRoot
+	iViewData
 	*template.Template
 }
 
-func newViewController(r viewRoot) *viewController {
-	x := &viewController{
-		r,
-		parseTemplates("./view"),
-	}
+func newViewController(r viewRoot) *views {
+	x := &views{}
+	x.viewRoot = r
+	x.iViewData = viewData{esiLink: x.esiLink()}.new()
+	x.Template = parseTemplates("./view")
 	return x
 }
 
@@ -44,10 +55,10 @@ func parseTemplates(p string) *template.Template {
 	return templ
 }
 
-func (x *viewController) showIndex(c *gin.Context) {
-	x.ExecuteTemplate(c.Writer, "index", x.Link())
+func (x *views) index(c *gin.Context) {
+	x.ExecuteTemplate(c.Writer, "index", x.iViewData)
 }
 
-func (x *viewController) registerRoutes(r *gin.RouterGroup) {
-	r.GET("/", x.showIndex)
+func (x *views) RegisterViews(r *gin.RouterGroup) {
+	r.GET("/", x.index)
 }

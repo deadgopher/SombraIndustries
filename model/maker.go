@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -9,10 +10,16 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+var _database *mongo.Database = 
+var _root_context context.Context
+
 type ModelMaker interface {
-	NewUser(interface{}) (*User, error)
-	NewComment(interface{}) (*Comment, error)
-	NewPost(c interface{}) (*Post, error)
+	PilotFromToken([]byte) (*Pilot, error)
+	Comment(interface{}) (*Comment, error)
+	Post(c interface{}) (*Post, error)
+	DeleteUsers() error
+	DeletePosts() error
+	DeleteComments() error
 }
 
 type maker struct {
@@ -25,31 +32,19 @@ func NewMaker(db *mongo.Database, ctx context.Context) *maker {
 	return x
 }
 
-func (x *maker) NewUser(c interface{}) (*User, error) {
-	var user *User
-	user.col = x.Collection("users")
-	user.ctx = x.ctx
-	if _, ok := c.(primitive.ObjectID); ok {
-		if err := x.Collection("users").FindOne(x.ctx, bson.M{"_id": c.(primitive.ObjectID)}).Decode(&user); err != nil {
-			return nil, err
-		}
-	}
-	if _, ok := c.(*gin.Context); ok {
-		if err := c.(*gin.Context).BindJSON(&user); err != nil {
-			return nil, err
-		}
-	}
-	if _, ok := c.(string); ok {
-		if err := x.Collection("users").FindOne(x.ctx, bson.M{"name": c.(string)}).Decode(&user); err != nil {
-			return nil, err
-		}
-	}
-	return user, nil
+func (x *maker) PilotFromToken(t []byte) (*Pilot, error) {
+	var pilot *Pilot
+	pilot.Collection = x.Collection("users")
+	pilot.ctx = x.ctx
 
+	if err := json.Unmarshal(t, &pilot.ESIToken); err != nil {
+		return nil, err
+	}
+	return pilot, nil
 }
-func (x *maker) NewComment(c interface{}) (*Comment, error) {
+func (x *maker) Comment(c interface{}) (*Comment, error) {
 	var comment *Comment
-	comment.col = x.Collection("comments")
+	comment.Collection = x.Collection("comments")
 	comment.ctx = x.ctx
 	if _, ok := c.(primitive.ObjectID); ok {
 		if err := x.Collection("comments").FindOne(x.ctx, bson.M{"_id": c.(primitive.ObjectID)}).Decode(&comment); err != nil {
@@ -64,9 +59,9 @@ func (x *maker) NewComment(c interface{}) (*Comment, error) {
 	return comment, nil
 }
 
-func (x *maker) NewPost(c interface{}) (*Post, error) {
+func (x *maker) Post(c interface{}) (*Post, error) {
 	var post *Post
-	post.col = x.Collection("posts")
+	post.Collection = x.Collection("posts")
 	post.ctx = x.ctx
 	if _, ok := c.(*gin.Context); ok {
 		if err := c.((*gin.Context)).BindJSON(&post); err != nil {
@@ -79,4 +74,16 @@ func (x *maker) NewPost(c interface{}) (*Post, error) {
 		}
 	}
 	return post, nil
+}
+func (x *maker) DeleteUsers() error {
+	_, err := x.Collection("users").DeleteMany(x.ctx, bson.M{})
+	return err
+}
+func (x *maker) DeletePosts() error {
+	_, err := x.Collection("posts").DeleteMany(x.ctx, bson.M{})
+	return err
+}
+func (x *maker) DeleteComments() error {
+	_, err := x.Collection("comments").DeleteMany(x.ctx, bson.M{})
+	return err
 }

@@ -14,7 +14,7 @@ var (
 )
 
 type TokenMaker interface {
-	CreateToken(*model.User, time.Duration) (string, error)
+	CreateToken(*model.Pilot, time.Duration) (string, error)
 	VerifyToken(string) (*Payload, error)
 }
 
@@ -22,7 +22,7 @@ type JWTMaker struct {
 	secret string
 }
 
-func (x *JWTMaker) CreateToken(data *model.User, exp time.Duration) (string, error) {
+func (x *JWTMaker) CreateToken(data *model.Pilot, exp time.Duration) (string, error) {
 
 	payload, err := NewPayload(data, exp)
 	if err != nil {

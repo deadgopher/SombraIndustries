@@ -11,11 +11,10 @@ import (
 
 type IComment interface {
 	Save() error
-	GetAll(primitive.ObjectID) ([]*Comment, error)
+	Get(primitive.ObjectID) ([]*Comment, error)
 	Valid() (bool, []string)
 	Update() error
-	Kill() error
-	KillAll() error
+	Delete() error
 }
 
 type Comment struct {
@@ -26,8 +25,8 @@ type Comment struct {
 	ParentID primitive.ObjectID `json:"_parent" bson:"_parent"`
 	Body     string             `json:"body" bson:"body"`
 
-	col *mongo.Collection `json:"-" bson:"-"`
-	ctx context.Context   `json:"-" bson:"-"`
+	*mongo.Collection `json:"-" bson:"-"`
+	ctx               context.Context `json:"-" bson:"-"`
 
 	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
@@ -38,7 +37,7 @@ func (x *Comment) Save() error {
 	x.CreatedAt = time.Now()
 	x.UpdatedAt = time.Now()
 
-	res, err := x.col.InsertOne(x.ctx, x)
+	res, err := x.InsertOne(x.ctx, x)
 	if err != nil {
 		return err
 	}
@@ -46,9 +45,9 @@ func (x *Comment) Save() error {
 	return nil
 }
 
-func (x *Comment) GetAll(id primitive.ObjectID) ([]*Comment, error) {
+func (x *Comment) Get(id primitive.ObjectID) ([]*Comment, error) {
 	var comments []*Comment
-	cur, err := x.col.Find(x.ctx, bson.M{"_parent": id})
+	cur, err := x.Find(x.ctx, bson.M{"_parent": id})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +57,7 @@ func (x *Comment) GetAll(id primitive.ObjectID) ([]*Comment, error) {
 		if err := cur.Decode(&Comment); err != nil {
 			return nil, err
 		}
-		Comment.bindToDB(x.col, x.ctx)
+		Comment.bindToDB(x.Collection, x.ctx)
 		comments = append(comments, Comment)
 	}
 	return comments, nil
@@ -84,20 +83,16 @@ func (x *Comment) Update() error {
 			"body": x.Body,
 		},
 	}
-	_, err := x.col.UpdateByID(x.ctx, x.ID, update)
+	_, err := x.UpdateByID(x.ctx, x.ID, update)
 	return err
 }
 
-func (x *Comment) Kill() error {
-	_, err := x.col.DeleteOne(x.ctx, bson.M{"_id": x.ID})
-	return err
-}
-func (x *Comment) KillAll() error {
-	_, err := x.col.DeleteMany(x.ctx, bson.M{})
+func (x *Comment) Delete() error {
+	_, err := x.DeleteOne(x.ctx, bson.M{"_id": x.ID})
 	return err
 }
 
 func (x *Comment) bindToDB(col *mongo.Collection, ctx context.Context) {
-	x.col = col
+	x.Collection = col
 	x.ctx = ctx
 }

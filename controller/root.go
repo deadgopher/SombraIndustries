@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
@@ -13,16 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
-type rootController struct {
-	model.ModelMaker
-	iEveController
-	users    controller
-	posts    controller
-	comments controller
-	views    controller
-	token.TokenMaker
-}
 
 func foo(bar error) []string {
 	return []string{bar.Error()}
@@ -42,83 +31,76 @@ func respond(c *gin.Context, code int, success bool, payload interface{}) {
 }
 
 type Routes interface {
-	RegisterUsers(*gin.RouterGroup)
+	RegisterPilots(*gin.RouterGroup)
 	RegisterPosts(*gin.RouterGroup)
 	RegisterComments(*gin.RouterGroup)
 	RegisterViews(*gin.RouterGroup)
 	RegisterEve(*gin.RouterGroup)
 }
 
-type root interface {
-	protect(gin.HandlerFunc) gin.HandlerFunc
-	NewUser(interface{}) (*model.User, error)
-	NewComment(interface{}) (*model.Comment, error)
-	NewPost(interface{}) (*model.Post, error)
-}
-type userRoot interface {
-	root
-	VerifyToken(string) (*token.Payload, error)
-	CreateToken(data *model.User, exp time.Duration) (string, error)
-}
-type viewRoot interface {
-	root
-	Link() string
-}
-
-type controller interface {
-	registerRoutes(*gin.RouterGroup)
-}
-
-type iEveController interface {
-	controller
-	Link() string
-}
-
-func (x *rootController) protect(next gin.HandlerFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tokString := c.GetHeader("Authorization")
-		payload, err := x.VerifyToken(tokString)
-		if err != nil {
-			respond(c, 400, false, []string{err.Error(), "not authorized!"})
-			return
-		}
-		c.Header("Authorization", payload.ID.String())
-		next(c)
-	}
+type rootController struct {
+	model.ModelMaker
+	iEve
+	iPilots
+	iPosts
+	iComments
+	iViews
+	token.TokenMaker
 }
 
 func New(db *mongo.Database, ctx context.Context) Routes {
 	x := &rootController{}
 
 	x.ModelMaker = model.NewMaker(db, ctx)
-	fmt.Println("made model maker")
-	x.users = newUserController(x)
-	fmt.Println("made user controller")
-	x.posts = newPostController(x)
-	fmt.Println("made post controller")
-	x.comments = newCommentController(x)
-	fmt.Println("made comment controller")
-	x.views = newViewController(x)
-	fmt.Println("made view controller")
+	x.iPilots = newPilotController(x)
+	x.iPosts = newPostController(x)
+	x.iComments = newCommentController(x)
+	x.iViews = newViewController(x)
 	x.TokenMaker = token.NewJWTMaker(os.Getenv("SECRET_KEY"))
-	fmt.Println("made token maker")
-	x.iEveController = newEveController(x)
+	x.iEve = newEveController(x)
 	return x
 }
 
-func (x *rootController) RegisterUsers(g *gin.RouterGroup) {
-	x.users.registerRoutes(g)
+type root interface {
+	// protect(gin.HandlerFunc) gin.HandlerFunc
+	setData(interface{})
+	PilotFromToken([]byte) (*model.Pilot, error)
+	Comment(interface{}) (*model.Comment, error)
+	Post(interface{}) (*model.Post, error)
+	MakeRequest() ([]byte, error)
+	CreateToken(data *model.Pilot, exp time.Duration) (string, error)
+	show(gin.ResponseWriter, string)
 }
-func (x *rootController) RegisterPosts(g *gin.RouterGroup) {
-	x.posts.registerRoutes(g)
+type userRoot interface {
+	root
+	VerifyToken(string) (*token.Payload, error)
+	DeleteUsers() error
 }
-func (x *rootController) RegisterComments(g *gin.RouterGroup) {
-	x.comments.registerRoutes(g)
+type postRoot interface {
+	root
+	DeletePosts() error
 }
-func (x *rootController) RegisterViews(g *gin.RouterGroup) {
-	x.views.registerRoutes(g)
+type commentRoot interface {
+	root
+	DeleteComments() error
+}
+type viewRoot interface {
+	root
+	esiLink() string
+}
+type eveRoot interface {
+	root
 }
 
-func (x *rootController) RegisterEve(g *gin.RouterGroup) {
-	x.iEveController.registerRoutes(g)
-}
+// func (x *rootController) protect(next gin.HandlerFunc) gin.HandlerFunc {
+// 	return func(c *gin.Context) {
+// 		tokString := c.GetHeader("Authorization")
+// 		payload, err := x.VerifyToken(tokString)
+// 		if err != nil {
+// 			respond(c, 400, false, []string{err.Error(), "not authorized!"})
+// 			return
+// 		}
+// 		c.Header("Authorization", payload.ID.String())
+// 		next(c)
+// 	}
+// }

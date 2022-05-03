@@ -12,10 +12,9 @@ import (
 
 type IPost interface {
 	Save() error
-	GetAll() ([]*Post, error)
+	Get() ([]*Post, error)
 	Update() error
-	Kill() error
-	KillAll() error
+	Delete() error
 	Valid() []error
 }
 
@@ -26,10 +25,9 @@ type Post struct {
 	AuthorID primitive.ObjectID `json:"_author" bson:"_author"`
 	Title    string             `json:"title" bson:"title"`
 	Body     string             `json:"body" bson:"body"`
-	Comments []*Comment         `json:"comments" bson:"-"`
 
-	col *mongo.Collection `json:"-" bson:"-"`
-	ctx context.Context   `json:"-" bson:"-"`
+	*mongo.Collection `json:"-" bson:"-"`
+	ctx               context.Context `json:"-" bson:"-"`
 
 	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
@@ -38,7 +36,7 @@ type Post struct {
 func (x *Post) Save() error {
 	x.CreatedAt = time.Now()
 	x.UpdatedAt = time.Now()
-	res, err := x.col.InsertOne(x.ctx, x)
+	res, err := x.InsertOne(x.ctx, x)
 	if err != nil {
 		return err
 	}
@@ -46,9 +44,9 @@ func (x *Post) Save() error {
 	return nil
 }
 
-func (x *Post) GetAll() ([]*Post, error) {
+func (x *Post) Get() ([]*Post, error) {
 	var posts []*Post
-	cur, err := x.col.Find(x.ctx, bson.M{})
+	cur, err := x.Find(x.ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +56,7 @@ func (x *Post) GetAll() ([]*Post, error) {
 		if err := cur.Decode(&Post); err != nil {
 			return nil, err
 		}
-		Post.bindToDB(x.col, x.ctx)
+		Post.bindToDB(x.Collection, x.ctx)
 		posts = append(posts, Post)
 	}
 	return posts, nil
@@ -71,16 +69,12 @@ func (x *Post) Update() error {
 			"body":  x.Body,
 		},
 	}
-	_, err := x.col.UpdateByID(x.ctx, x.ID, update)
+	_, err := x.UpdateByID(x.ctx, x.ID, update)
 	return err
 }
 
-func (x *Post) Kill() error {
-	_, err := x.col.DeleteOne(x.ctx, bson.M{"_id": x.ID})
-	return err
-}
-func (x *Post) KillAll() error {
-	_, err := x.col.DeleteMany(x.ctx, bson.M{})
+func (x *Post) Delete() error {
+	_, err := x.DeleteOne(x.ctx, bson.M{"_id": x.ID})
 	return err
 }
 
@@ -97,6 +91,6 @@ func (x *Post) Valid() []error {
 }
 
 func (x *Post) bindToDB(col *mongo.Collection, ctx context.Context) {
-	x.col = col
+	x.Collection = col
 	x.ctx = ctx
 }

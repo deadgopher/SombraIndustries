@@ -1,0 +1,19 @@
+section {
+    height:100vh;
+    background-attachment: fixed;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.splash-section {
+    background-image: url("/assets/images/splash.jpeg");
+}
+.industry-section {
+    background-image: url("/assets/images/hulkWorking.png");
+}
+.scout-section {
+    background-image: url("/assets/images/exploration.jpeg");
+}
+.security-section {
+    background-image: url("/assets/images/fighters.jpeg");
+}

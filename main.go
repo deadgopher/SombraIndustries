@@ -95,7 +95,7 @@ func main() {
 	fmt.Println("CORS set")
 	api := server.Group("/api")
 	{
-		con.RegisterUsers(api.Group("/users"))
+		con.RegisterPilots(api.Group("/pilots"))
 		con.RegisterPosts(api.Group("/posts"))
 		con.RegisterComments(api.Group("/comments"))
 		con.RegisterEve(api.Group("/eve"))
