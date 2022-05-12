@@ -1,89 +1,89 @@
 package controller
 
 import (
+	"germ/model"
+
 	"github.com/gin-gonic/gin"
 )
 
-type iPosts interface {
-	RegisterPosts(r *gin.RouterGroup)
+// sharing
+type iPostController interface {
+	iController
 }
 
+// reguires
+type iPostRoot interface {
+}
 type posts struct {
-	postRoot
+	iPostRoot
 }
 
-func newPostController(r postRoot) *posts {
-	x := &posts{
-		r,
-	}
-	return x
-}
-
-// Create
-func (x *posts) create(c *gin.Context) {
-	post, err := x.Post(c)
-	if err != nil {
-		respond(c, 400, false, foo(err))
-		return
-	}
-	if validationErrors := post.Valid(); validationErrors != nil {
-		respond(c, 400, false, validationErrors)
-		return
-	}
-	if err := post.Save(); err != nil {
-		respond(c, 500, false, foo(err))
-		return
-	}
-	respond(c, 201, true, post)
-}
-
-func (x *posts) getOne(c *gin.Context) {
-	post, err := x.Post(oid(c.Param("id")))
-	if err != nil {
-		respond(c, 400, false, foo(err))
-		return
-	}
-	respond(c, 200, true, post)
-}
-func (x *posts) getAll(c *gin.Context) {
-	shepard, _ := x.Post(nil)
-	posts, err := shepard.Get()
-	if err != nil {
-		respond(c, 500, false, foo(err))
-		return
-	}
-	respond(c, 200, true, posts)
-}
-
-func (x *posts) update(c *gin.Context) {
-
-}
-func (x *posts) delete(c *gin.Context) {
-	post, err := x.Post(oid(c.Param("id")))
-	if err != nil {
-		respond(c, 400, false, foo(err))
-		return
-	}
-	if err := post.Delete(); err != nil {
-		respond(c, 500, false, foo(err))
-		return
-	}
-	respond(c, 200, true, nil)
-}
-
-func (x *posts) deleteAll(c *gin.Context) {
-	if err := x.DeletePosts(); err != nil {
-		respond(c, 500, false, foo(err))
-		return
-	}
-	respond(c, 200, true, nil)
-}
-
-func (x *posts) RegisterPosts(r *gin.RouterGroup) {
+func (x *posts) register(r *gin.RouterGroup) {
 	r.POST("/", x.create)
 	r.GET("/:id", x.getOne)
 	r.GET("/", x.getAll)
 	r.PUT("/", x.update)
 	r.DELETE("/:id", x.delete)
-	r.DELETE("/", x.deleteAll)
+}
+
+// Create
+func (x *posts) create(c *gin.Context) {
+
+	post, err := model.Post{}.Create(c)
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	if errs := post.Validate(); errs != nil {
+		response{false, errs}.send(c, 400)
+		return
+	}
+	if err := post.Save(); err != nil {
+		response{false, []string{err.Error()}}.send(c, 500)
+		return
+	}
+	response{true, nil}.send(c, 201)
+}
+
+func (x *posts) getOne(c *gin.Context) {
+	post, err := model.Post{}.Create(c.Param("id"))
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	response{true, post}.send(c, 200)
+}
+func (x *posts) getAll(c *gin.Context) {
+	p, err := model.Post{}.Read()
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	response{true, p}.send(c, 200)
+}
+
+func (x *posts) update(c *gin.Context) {
+	post, err := model.Post{}.Create(c)
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	if err := post.Update(); err != nil {
+		response{false, []string{err.Error()}}.send(c, 500)
+		return
+	}
+	response{true, nil}.send(c, 200)
+}
+
+func (x *posts) delete(c *gin.Context) {
+	post, err := model.Post{}.Create(c.Param(("id")))
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	if err := post.Destroy(); err != nil {
+		response{false, []string{err.Error()}}.send(c, 500)
+		return
+	}
+	response{true, nil}.send(c, 200)
 }

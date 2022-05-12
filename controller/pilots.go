@@ -1,61 +1,77 @@
 package controller
 
 import (
+	"germ/model"
+
 	"github.com/gin-gonic/gin"
 )
 
-type iPilots interface {
-	RegisterPilots(r *gin.RouterGroup)
+// sharing
+type iPilotController interface {
+	iController
 }
 
+// requires
+type iPilotRoot interface {
+}
 type pilots struct {
-	userRoot
+	iPilotRoot
 }
 
-func newPilotController(r userRoot) *pilots {
-	return &pilots{r}
-}
-func (x *pilots) RegisterPilots(r *gin.RouterGroup) {
-	// r.POST("/", x.create)
+func (x *pilots) register(r *gin.RouterGroup) {
 	r.GET("/:id", x.getOne)
 	r.GET("/n/:name", x.getByName)
 	r.GET("/", x.getAll)
 	r.DELETE("/:id", x.delete)
 	r.DELETE("/", x.deleteAll)
-	// r.POST("/login", x.login)
-	r.GET("/auth", x.verifyToken)
 }
 
 func (x *pilots) getOne(c *gin.Context) {
-
+	pilot, err := model.Pilot{}.Create(c.Param("id"))
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	response{true, pilot}.send(c, 200)
 }
 
 func (x *pilots) getByName(c *gin.Context) {
-
+	pilot, err := model.Pilot{}.Create(c.Param("id"))
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	response{true, pilot}.send(c, 200)
 }
 
 func (x *pilots) getAll(c *gin.Context) {
-
+	pilots, err := model.Pilot{}.Read()
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 500)
+		return
+	}
+	response{true, pilots}.send(c, 200)
 }
 
 func (x *pilots) delete(c *gin.Context) {
-
+	pilot, err := model.Pilot{}.Create(c.Param("id"))
+	if err != nil {
+		response{false, []string{err.Error()}}.send(c, 400)
+		return
+	}
+	if err := pilot.Destroy(); err != nil {
+		response{false, []string{err.Error()}}.send(c, 500)
+		return
+	}
+	response{true, nil}.send(c, 200)
 }
 
 func (x *pilots) deleteAll(c *gin.Context) {
 
-}
-
-func (x *pilots) verifyToken(c *gin.Context) {
-	token, err := x.VerifyToken(c.GetHeader("Authorization"))
+	err := model.Pilot{}.Purge()
 	if err != nil {
-		respond(c, 400, false, foo(err))
+		response{false, []string{err.Error()}}.send(c, 500)
 		return
 	}
-	respond(c, 200, true, token)
-}
-
-// Login : Log in
-func (x *pilots) login(c *gin.Context) {
-
+	response{true, nil}.send(c, 200)
 }

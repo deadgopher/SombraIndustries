@@ -1,95 +1,103 @@
 package controller
 
 import (
-	"context"
+	"database/sql"
+	"fmt"
+	"net/http"
 	"os"
-	"time"
 
+	"germ/auth"
 	"germ/model"
-	"germ/token"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func foo(bar error) []string {
-	return []string{bar.Error()}
+type Controller interface {
+	Register(*gin.RouterGroup)
+}
+type iController interface {
+	register(*gin.RouterGroup)
+}
+type iRoot interface {
 }
 
-func oid(id string) primitive.ObjectID {
-	x, _ := primitive.ObjectIDFromHex(id)
+type root struct {
+	iESIController
+	iPilotController
+	iPostController
+	iCommentController
+	auth.TokenMaker
+}
+
+func New(db *sql.DB) Controller {
+	model.Init(db)
+	x := &root{}
+	x.TokenMaker = auth.NewJWTMaker(os.Getenv("SECRET_KEY"))
+
+	x.iESIController = esi{iESIRoot: x}.new()
+	x.iPilotController = &pilots{iPilotRoot: x}
+	x.iPostController = &posts{iPostRoot: x}
+	x.iCommentController = &comments{iCommentRoot: x}
+
 	return x
+
 }
 
-func respond(c *gin.Context, code int, success bool, payload interface{}) {
-	r := gin.H{
-		"success": success,
-		"payload": payload,
+func (x *root) Register(r *gin.RouterGroup) {
+	x.iESIController.register(r.Group("eve"))
+	x.iPilotController.register(r.Group("pilots"))
+	x.iPostController.register(r.Group("posts"))
+	x.iCommentController.register(r.Group("comments"))
+
+	r.GET("/", x.handshake)
+}
+
+func (x *root) handshake(c *gin.Context) {
+
+	fmt.Println("trying to handshake...")
+
+	fmt.Println("getting cookie")
+	cookieString, err := c.Cookie("mydamncookie")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			fmt.Println("---there was no cookie " + err.Error())
+			response{true, struct {
+				Link  string       `json:"link"`
+				Pilot *model.Pilot `json:"pilot"`
+			}{
+				x.getLink(),
+				nil,
+			}}.send(c, http.StatusOK)
+			return
+		}
+		fmt.Println("---something else went wrong " + err.Error())
+		response{false, err.Error()}.send(c, http.StatusInternalServerError)
+		return
+
 	}
-	c.JSON(code, r)
-}
+	cookie, err := x.MakeCookie(cookieString)
+	if err != nil {
+		fmt.Println("---error unmarshaling the cookie " + err.Error())
+		response{false, err}.send(c, http.StatusInternalServerError)
+		return
+	}
+	payload, err := x.VerifyToken(cookie.Value)
+	if err != nil {
+		fmt.Println("---error verifying the token string inside the cookie else went wrong " + err.Error())
+		response{false, err}.send(c, http.StatusInternalServerError)
+		return
+	}
 
-type Routes interface {
-	RegisterPilots(*gin.RouterGroup)
-	RegisterPosts(*gin.RouterGroup)
-	RegisterComments(*gin.RouterGroup)
-	RegisterViews(*gin.RouterGroup)
-	RegisterEve(*gin.RouterGroup)
-}
+	fmt.Println("---making res data ")
 
-type rootController struct {
-	model.ModelMaker
-	iEve
-	iPilots
-	iPosts
-	iComments
-	iViews
-	token.TokenMaker
-}
-
-func New(db *mongo.Database, ctx context.Context) Routes {
-	x := &rootController{}
-
-	x.ModelMaker = model.NewMaker(db, ctx)
-	x.iPilots = newPilotController(x)
-	x.iPosts = newPostController(x)
-	x.iComments = newCommentController(x)
-	x.iViews = newViewController(x)
-	x.TokenMaker = token.NewJWTMaker(os.Getenv("SECRET_KEY"))
-	x.iEve = newEveController(x)
-	return x
-}
-
-type root interface {
-	// protect(gin.HandlerFunc) gin.HandlerFunc
-	setData(interface{})
-	PilotFromToken([]byte) (*model.Pilot, error)
-	Comment(interface{}) (*model.Comment, error)
-	Post(interface{}) (*model.Post, error)
-	MakeRequest() ([]byte, error)
-	CreateToken(data *model.Pilot, exp time.Duration) (string, error)
-	show(gin.ResponseWriter, string)
-}
-type userRoot interface {
-	root
-	VerifyToken(string) (*token.Payload, error)
-	DeleteUsers() error
-}
-type postRoot interface {
-	root
-	DeletePosts() error
-}
-type commentRoot interface {
-	root
-	DeleteComments() error
-}
-type viewRoot interface {
-	root
-	esiLink() string
-}
-type eveRoot interface {
-	root
+	fmt.Println("---responding success")
+	response{true, struct {
+		Link  string `json:"link"`
+		Pilot string `json:"pilot"`
+	}{
+		x.getLink(),
+		payload.Data,
+	}}.send(c, http.StatusOK)
 }
 
 // func (x *rootController) protect(next gin.HandlerFunc) gin.HandlerFunc {

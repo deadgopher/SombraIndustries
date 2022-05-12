@@ -1,14 +1,25 @@
 package model
 
-import "time"
-
 const CHARACTERS = "characters/"
+const ROOT = "https://esi.evetech.net/latest/"
+
+// type Permissions []Permission
+
+// func (x Permissions) new() *Permissions {
+// 	return &x
+// }
+
+type Permission struct {
+	ID          uint   `json:"id" bson:"id"`
+	Value       string `json:"value" bson:"value"`
+	Description string `json:"description" bson:"description"`
+}
 
 type MiningRecord struct {
-	Date        time.Time `json:"data" bson:"data"`
-	Quantity    int       `json:"quantity" bson:"quantity"`
-	SolarSystem int       `json:"solar_system_id" bson:"solarSystemId"`
-	Type        int       `json:"type_id" bson:"typeId"`
+	Date        string `json:"date" bson:"date"`
+	Quantity    int    `json:"quantity" bson:"quantity"`
+	SolarSystem int    `json:"solar_system_id" bson:"solarSystemId"`
+	Type        int    `json:"type_id" bson:"typeId"`
 }
 
 type ESIToken struct {
